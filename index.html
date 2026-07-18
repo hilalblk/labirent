@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>labirent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#e0c040;
+    --stone:#2a2233;
+    --stone2:#1a1522;
+    --wall:#4b3a63;
+    --wall-hi:#6a5488;
+    --path:#0e0b16;
+    --red:#7a1f1f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Press Start 2P', monospace;
+    background:radial-gradient(circle at 50% -10%, #3a2f55 0%, #17121f 60%, #0b0810 100%);
+    color:#e8e4f0;
+    -webkit-font-smoothing:none;
+    image-rendering:pixelated;
+    padding:24px 16px 60px;
+    min-height:100vh;
+  }
+  canvas{image-rendering:pixelated;display:block;}
+
+  .title{
+    text-align:center;font-size:34px;letter-spacing:6px;color:var(--gold);
+    text-shadow:4px 4px 0 #000, 0 0 18px rgba(224,192,64,.35);margin:8px 0 4px;
+  }
+  .subtitle{text-align:center;font-size:10px;color:#b9a7e0;margin-bottom:26px;letter-spacing:2px;}
+  h2{font-size:14px;color:var(--gold);text-align:center;margin:32px 0 18px;letter-spacing:2px;text-shadow:2px 2px 0 #000;}
+  .wrap{max-width:920px;margin:0 auto;}
+
+  .panel{background:var(--stone);border:4px solid #000;box-shadow:0 0 0 4px var(--wall), 0 8px 0 4px #000;padding:18px;}
+
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .card{background:var(--stone2);border:3px solid #000;box-shadow:0 0 0 3px #3a2f55;padding:12px 8px 14px;text-align:center;cursor:pointer;transition:transform .08s, box-shadow .08s;}
+  .card:hover{transform:translateY(-3px);}
+  .card.sel{box-shadow:0 0 0 3px var(--gold), 0 0 18px rgba(224,192,64,.5);background:#251b34;}
+  .card canvas{margin:0 auto 10px;background:#120d1c;border:2px solid #000;width:80px;height:80px;}
+  .cname{font-size:10px;color:#fff;margin-bottom:8px;letter-spacing:1px;}
+  .hearts{font-size:11px;letter-spacing:2px;}
+  .heart{color:#e0405a;}
+
+  .enemies{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .enemy{background:var(--stone2);border:3px solid #000;box-shadow:0 0 0 3px #3a2f55;padding:12px 8px 14px;text-align:center;}
+  .enemy canvas{margin:0 auto 10px;background:#120d1c;border:2px solid #000;width:72px;height:72px;}
+  .ename{font-size:9px;color:#fff;margin-bottom:8px;line-height:1.5;}
+  .cost{font-size:10px;color:#e0405a;letter-spacing:1px;}
+
+  .btn{
+    font-family:inherit;cursor:pointer;color:#120d1c;background:var(--gold);
+    border:3px solid #000;box-shadow:0 4px 0 0 #7a6410, 0 4px 0 3px #000;
+    padding:14px 22px;font-size:12px;letter-spacing:2px;margin:22px auto 0;display:block;
+    transition:transform .05s;
+  }
+  .btn:hover{transform:translateY(-2px);}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 0 #7a6410, 0 1px 0 3px #000;}
+  .btn.ghost{background:#2a2233;color:#e8e4f0;box-shadow:0 4px 0 0 #000,0 4px 0 3px #000;}
+
+  .note{text-align:center;font-size:9px;color:#8f7fb8;margin-top:14px;line-height:1.8;}
+  .hide{display:none !important;}
+
+  /* ---- game screen ---- */
+  #screen-game{max-width:760px;margin:0 auto;}
+  .hud{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--stone);border:4px solid #000;box-shadow:0 0 0 4px var(--wall);
+    padding:12px 16px;margin-bottom:14px;
+  }
+  .hud .who{display:flex;align-items:center;gap:10px;font-size:11px;color:#fff;}
+  .hud .who canvas{width:32px;height:32px;background:#120d1c;border:2px solid #000;}
+  .hud .lvl{font-size:11px;color:var(--gold);letter-spacing:1px;}
+  .hud .hp{font-size:18px;letter-spacing:3px;}
+  .hp .on{color:#e0405a;} .hp .off{color:#4a3f5c;}
+
+  .stage{position:relative;display:flex;justify-content:center;}
+  #maze{border:4px solid #000;box-shadow:0 0 0 4px var(--wall);background:#0b0810;}
+  #maze.hurt{animation:shake .18s;}
+  @keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-4px,2px)}50%{transform:translate(4px,-2px)}75%{transform:translate(-2px,-2px)}}
+  #flash{position:absolute;inset:0;background:rgba(224,64,90,.45);opacity:0;pointer-events:none;}
+  #flash.show{animation:fl .3s;}
+  @keyframes fl{0%{opacity:.55}100%{opacity:0}}
+
+  #overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(10,8,16,.86);text-align:center;padding:20px;
+  }
+  #overlay .big{font-size:24px;letter-spacing:3px;text-shadow:3px 3px 0 #000;margin-bottom:16px;}
+  #overlay .msg{font-size:11px;color:#cfc3ea;line-height:1.9;margin-bottom:10px;}
+  .win{color:var(--gold);} .lose{color:#e0405a;} .ok{color:#7bd88f;}
+
+  .hint{text-align:center;font-size:9px;color:#8f7fb8;margin-top:14px;line-height:1.9;}
+  .foot{text-align:center;margin-top:34px;font-size:9px;color:#6f5f96;letter-spacing:1px;}
+
+  /* ---- D-pad touch controls ---- */
+  #dpad{
+    display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);
+    gap:8px;justify-content:center;margin:18px auto 0;touch-action:none;
+  }
+  .dbtn{
+    font-family:inherit;color:#120d1c;background:var(--gold);
+    border:3px solid #000;box-shadow:0 4px 0 0 #7a6410, 0 4px 0 3px #000;
+    font-size:20px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;
+  }
+  .dbtn:active{transform:translateY(3px);box-shadow:0 1px 0 0 #7a6410, 0 1px 0 3px #000;}
+  .dbtn[data-dir="up"]{grid-column:2;grid-row:1;}
+  .dbtn[data-dir="left"]{grid-column:1;grid-row:2;}
+  .dbtn[data-dir="down"]{grid-column:2;grid-row:3;}
+  .dbtn[data-dir="right"]{grid-column:3;grid-row:2;}
+
+  /* ---- responsive: phones ---- */
+  @media (max-width:640px){
+    body{padding:14px 8px 40px;}
+    .title{font-size:22px;letter-spacing:3px;}
+    .subtitle{font-size:8px;margin-bottom:18px;}
+    h2{font-size:11px;margin:22px 0 14px;}
+    .panel{padding:12px;}
+    .cards{grid-template-columns:repeat(2,1fr);gap:10px;}
+    .enemies{grid-template-columns:1fr;gap:10px;}
+    #maze{max-width:calc(100vw - 24px);height:auto;}
+    .hud{flex-wrap:wrap;justify-content:center;gap:8px;padding:10px;}
+    .hud .lvl,.hud .who{font-size:10px;}
+    #overlay .big{font-size:18px;}
+    #dpad{grid-template-columns:repeat(3,72px);grid-template-rows:repeat(3,72px);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">LABIRENT</div>
+  <div class="subtitle">~ a wizarding maze adventure ~</div>
+
+  <!-- ================= SELECT SCREEN ================= -->
+  <div id="screen-select">
+    <h2>CHOOSE YOUR WIZARD</h2>
+    <div class="panel">
+      <div class="cards" id="cards"></div>
+      <div class="note">click a wizard &middot; everyone starts with 5 hearts</div>
+    </div>
+
+    <h2>BEWARE THE DARK CREATURES</h2>
+    <div class="panel">
+      <div class="enemies" id="enemies"></div>
+    </div>
+
+    <button class="btn" id="startBtn">START ADVENTURE</button>
+    <div class="note">controls: ARROW KEYS or WASD &middot; reach the golden Cup &middot; avoid the monsters</div>
+  </div>
+
+  <!-- ================= GAME SCREEN ================= -->
+  <div id="screen-game" class="hide">
+    <div class="hud">
+      <div class="who"><canvas id="hudFace"></canvas><span id="hudName">HARRY</span></div>
+      <div class="lvl" id="hudLevel">LEVEL 1 / 3</div>
+      <div class="hp" id="hudHearts"></div>
+    </div>
+    <div class="stage">
+      <canvas id="maze"></canvas>
+      <div id="flash"></div>
+      <div id="overlay" class="hide">
+        <div class="big" id="ovTitle">TITLE</div>
+        <div class="msg" id="ovMsg"></div>
+        <button class="btn" id="ovBtn">CONTINUE</button>
+        <button class="btn ghost" id="menuBtn">MAIN MENU</button>
+      </div>
+    </div>
+    <div id="dpad">
+      <button class="dbtn" data-dir="up" aria-label="up">&#9650;</button>
+      <button class="dbtn" data-dir="left" aria-label="left">&#9664;</button>
+      <button class="dbtn" data-dir="down" aria-label="down">&#9660;</button>
+      <button class="dbtn" data-dir="right" aria-label="right">&#9654;</button>
+    </div>
+    <div class="hint">D-PAD or ARROW KEYS / WASD to move &middot; the maze is dark &mdash; explore to reveal it &middot; monsters lurk unseen</div>
+  </div>
+
+  <div class="foot">labirent &middot; 8-bit wizarding maze</div>
+</div>
+
+<script>
+/* ============================================================
+   PIXEL SPRITES
+   ============================================================ */
+function drawGrid(canvas, grid, pal){
+  const rows=grid.length, cols=grid[0].length;
+  canvas.width=cols; canvas.height=rows;
+  const ctx=canvas.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  for(let y=0;y<rows;y++){
+    const line=grid[y];
+    for(let x=0;x<line.length;x++){
+      const c=line[x]; if(c==='.'||c===' ')continue;
+      const col=pal[c]; if(!col)continue;
+      ctx.fillStyle=col; ctx.fillRect(x,y,1,1);
+    }
+  }
+}
+
+const HERO=[
+"....HHHHHHHH....","...HHHHHHHHHH...","..HHHHHHHHHHHH..","..HHSSSSSSSSHH..",
+"..HSSSSSSSSSSH..","..SSSSSSSSSSSS..","..SEESSSSSSEES..","..SSSSSSSSSSSS..",
+"...SSSSSSSSSS...","..RRRRRRRRRRRR..",".RRRRRRRRRRRRRR.",".RRRRRRAARRRRRR.",
+".RRRRRRAARRRRRR.",".RRRRRRRRRRRRRR.",".RRRRR....RRRRR.",".KKKK......KKKK.",
+];
+const HARRY=[
+"....HHHHHHHH....","...HHHHHHHHHH...","..HHHHHHHHHHHH..","..HSSSSCSSSSSH..",
+"..HSSSSSSSSSSH..","..SSSSSSSSSSSS..","..SSEEESSEEESS..","..SSSSSSSSSSSS..",
+"...SSSSSSSSSS...","..RRRRRRRRRRRR..",".RRRRRRRRRRRRRR.",".RRRRRRAARRRRRR.",
+".RRRRRRAARRRRRR.",".RRRRRRRRRRRRRR.",".RRRRR....RRRRR.",".KKKK......KKKK.",
+];
+const HEROES=[
+ {name:"HARRY",   grid:HARRY,pal:{H:'#241608',S:'#f0c8a0',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018',C:'#c0392b'}},
+ {name:"HERMIONE",grid:HERO, pal:{H:'#6b3a1a',S:'#f2cea6',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018'}},
+ {name:"RON",     grid:HERO, pal:{H:'#c0521a',S:'#f5d2ac',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018'}},
+ {name:"LUNA",    grid:HERO, pal:{H:'#e8d16a',S:'#f2ceac',E:'#141018',R:'#1f3a7a',A:'#c8ccd6',K:'#141018'}},
+];
+
+function px(o,x,y,w,h,c){o.fillStyle=c;o.fillRect(x,y,w,h);}
+function drawMonster(o,type){
+  if(type==='fluffy'){
+    const body='#6b4a2a',dark='#3a2716',eye='#e0405a',tooth='#f5f0e0';
+    px(o,3,9,10,5,body);
+    [1,6,11].forEach(hx=>{px(o,hx,3,4,6,body);px(o,hx,2,1,2,dark);px(o,hx+3,2,1,2,dark);px(o,hx+1,5,1,1,eye);px(o,hx+1,8,2,1,tooth);});
+    px(o,3,14,2,2,dark);px(o,11,14,2,2,dark);
+  } else if(type==='snake'){
+    const g='#2e8b3d',gd='#1c5a27',eye='#e0c040',fang='#f5f0e0';
+    px(o,2,4,9,2,g);px(o,9,4,2,5,g);px(o,4,8,7,2,g);px(o,4,8,2,5,g);px(o,4,12,8,2,g);
+    px(o,2,3,4,3,g);px(o,2,4,1,1,eye);px(o,1,5,1,2,fang);px(o,3,6,1,1,fang);px(o,2,3,9,1,gd);
+  } else if(type==='voldemort'){
+    const skin='#e8e6dc',sd='#c4c2b6',robe='#141018',eye='#c0392b',mouth='#5a1a1a';
+    px(o,4,9,8,7,robe);px(o,3,9,1,5,robe);px(o,12,9,1,5,robe);
+    px(o,5,2,6,7,skin);px(o,4,3,1,5,skin);px(o,11,3,1,5,skin);px(o,5,2,6,1,sd);
+    px(o,6,4,1,1,eye);px(o,9,4,1,1,eye);px(o,7,6,2,1,sd);px(o,6,7,4,1,mouth);
+  }
+}
+function heroTile(hero){const c=document.createElement('canvas');drawGrid(c,hero.grid,hero.pal);return c;}
+function monsterTile(type){const c=document.createElement('canvas');c.width=16;c.height=16;const o=c.getContext('2d');o.imageSmoothingEnabled=false;drawMonster(o,type);return c;}
+
+const MONSTERS={
+  fluffy:   {cost:1,tile:monsterTile('fluffy')},
+  snake:    {cost:2,tile:monsterTile('snake')},
+  voldemort:{cost:3,tile:monsterTile('voldemort')},
+};
+
+/* ============================================================
+   MAZE GENERATION (perfect maze => always solvable)
+   ============================================================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+function genMaze(cols,rows,rng){
+  const W=cols*2+1,H=rows*2+1;
+  const g=Array.from({length:H},()=>Array(W).fill('#'));
+  const seen=Array.from({length:rows},()=>Array(cols).fill(false));
+  const stack=[[0,0]]; seen[0][0]=true; g[1][1]='.';
+  while(stack.length){
+    const [cx,cy]=stack[stack.length-1];
+    const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+    for(let i=dirs.length-1;i>0;i--){const j=(rng()*(i+1))|0;[dirs[i],dirs[j]]=[dirs[j],dirs[i]];}
+    let moved=false;
+    for(const [dx,dy] of dirs){
+      const nx=cx+dx,ny=cy+dy;
+      if(nx>=0&&nx<cols&&ny>=0&&ny<rows&&!seen[ny][nx]){
+        seen[ny][nx]=true;
+        g[cy*2+1+dy][cx*2+1+dx]='.';
+        g[ny*2+1][nx*2+1]='.';
+        stack.push([nx,ny]); moved=true; break;
+      }
+    }
+    if(!moved) stack.pop();
+  }
+  return g;
+}
+
+function bfsPath(g,start,end){
+  const H=g.length,W=g[0].length;
+  const key=(x,y)=>y*W+x;
+  const prev=new Map(); const q=[start]; const seen=new Set([key(start[0],start[1])]);
+  const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+  while(q.length){
+    const [x,y]=q.shift();
+    if(x===end[0]&&y===end[1])break;
+    for(const [dx,dy] of dirs){
+      const nx=x+dx,ny=y+dy;
+      if(nx<0||ny<0||nx>=W||ny>=H)continue;
+      if(g[ny][nx]==='#')continue;
+      const k=key(nx,ny); if(seen.has(k))continue;
+      seen.add(k); prev.set(k,key(x,y)); q.push([nx,ny]);
+    }
+  }
+  const path=new Set(); let ck=key(end[0],end[1]);
+  if(!prev.has(ck)&&!(end[0]===start[0]&&end[1]===start[1]))return path;
+  path.add(ck);
+  while(prev.has(ck)){ck=prev.get(ck);path.add(ck);}
+  return path; // set of y*W+x
+}
+
+/* Level definitions – add more here later to extend the game */
+const LEVELS=[
+  {cols:7, rows:7, seed:101, monsters:['fluffy','fluffy','fluffy']},
+  {cols:8, rows:8, seed:202, monsters:['fluffy','fluffy','fluffy','snake']},
+  {cols:8, rows:8, seed:303, monsters:['fluffy','fluffy','snake','snake','snake']},
+  {cols:9, rows:9, seed:404, monsters:['fluffy','fluffy','snake','snake','snake','voldemort']},
+  {cols:9, rows:9, seed:505, monsters:['fluffy','fluffy','snake','snake','voldemort','voldemort']},
+  {cols:10,rows:10,seed:606, monsters:['fluffy','fluffy','snake','snake','snake','voldemort','voldemort']},
+  {cols:10,rows:10,seed:707, monsters:['fluffy','fluffy','snake','snake','snake','voldemort','voldemort','voldemort']},
+  {cols:11,rows:11,seed:808, monsters:['fluffy','fluffy','snake','snake','snake','voldemort','voldemort','voldemort']},
+  {cols:12,rows:12,seed:909, monsters:['fluffy','fluffy','snake','snake','snake','snake','voldemort','voldemort','voldemort']},
+  {cols:13,rows:13,seed:1010,monsters:['fluffy','fluffy','fluffy','snake','snake','snake','snake','voldemort','voldemort','voldemort','voldemort']},
+];
+
+function buildLevel(idx){
+  const cfg=LEVELS[idx];
+  const rng=mulberry32(cfg.seed);
+  const g=genMaze(cfg.cols,cfg.rows,rng);
+  const H=g.length,W=g[0].length;
+  const start=[1,1];
+  const end=[W-2,H-2];
+  g[start[1]][start[0]]='.'; g[end[1]][end[0]]='.';
+  const pathKeys=bfsPath(g,start,end);
+  const key=(x,y)=>y*W+x;
+
+  // find off-path dead ends (cell centres with a single open neighbour)
+  const deadEnds=[];
+  for(let y=1;y<H;y+=2){
+    for(let x=1;x<W;x+=2){
+      if(g[y][x]!=='.')continue;
+      if((x===start[0]&&y===start[1])||(x===end[0]&&y===end[1]))continue;
+      if(pathKeys.has(key(x,y)))continue;
+      let open=0;
+      [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx,dy])=>{ if(g[y+dy][x+dx]==='.')open++; });
+      if(open===1) deadEnds.push([x,y]);
+    }
+  }
+  // shuffle dead ends
+  for(let i=deadEnds.length-1;i>0;i--){const j=(rng()*(i+1))|0;[deadEnds[i],deadEnds[j]]=[deadEnds[j],deadEnds[i]];}
+
+  const monsters=new Map();
+  cfg.monsters.forEach((type,i)=>{ if(i<deadEnds.length){const [x,y]=deadEnds[i]; monsters.set(key(x,y),type);} });
+
+  return {grid:g,W,H,start,end,monsters,key};
+}
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+const MAX_HP=5;
+const state={heroIdx:0,level:0,hp:MAX_HP,player:[1,1],lvl:null,over:false,explored:new Set(),visible:new Set()};
+const SIGHT=4; // how far you can see straight down a corridor
+
+const $=id=>document.getElementById(id);
+const screenSelect=$('screen-select'), screenGame=$('screen-game');
+const mazeCv=$('maze'), overlay=$('overlay');
+
+/* ---- build select screen ---- */
+const cardsEl=$('cards');
+HEROES.forEach((h,i)=>{
+  const card=document.createElement('div');
+  card.className='card'+(i===0?' sel':'');
+  const cv=heroTile(h); cv.style.width='80px'; cv.style.height='80px'; card.appendChild(cv);
+  const nm=document.createElement('div'); nm.className='cname'; nm.textContent=h.name; card.appendChild(nm);
+  const ht=document.createElement('div'); ht.className='hearts';
+  ht.innerHTML='<span class="heart">&hearts;&hearts;&hearts;&hearts;&hearts;</span>'; card.appendChild(ht);
+  card.onclick=()=>{document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));card.classList.add('sel');state.heroIdx=i;};
+  cardsEl.appendChild(card);
+});
+const enemyDefs=[
+ {name:"FLUFFY<br>the three-headed dog",type:'fluffy',cost:"-1 heart"},
+ {name:"THE SERPENT<br>(basilisk)",type:'snake',cost:"-2 hearts"},
+ {name:"THE DARK LORD<br>(no nose...)",type:'voldemort',cost:"-3 hearts"},
+];
+const enEl=$('enemies');
+enemyDefs.forEach(e=>{
+  const box=document.createElement('div'); box.className='enemy';
+  const cv=monsterTile(e.type); cv.style.width='72px'; cv.style.height='72px'; box.appendChild(cv);
+  const nm=document.createElement('div'); nm.className='ename'; nm.innerHTML=e.name; box.appendChild(nm);
+  const co=document.createElement('div'); co.className='cost'; co.textContent=e.cost; box.appendChild(co);
+  enEl.appendChild(box);
+});
+
+/* ---- rendering ---- */
+function tileSize(tiles){ return Math.max(20, Math.floor(560/tiles)); }
+
+function computeVisibility(L){
+  const vis=new Set(); const [px_,py_]=state.player;
+  const add=(x,y)=>{ if(x>=0&&y>=0&&x<L.W&&y<L.H){const k=L.key(x,y);vis.add(k);state.explored.add(k);} };
+  // immediate 3x3 surroundings (so adjacent walls/monsters are seen)
+  for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) add(px_+dx,py_+dy);
+  // line of sight down each corridor until a wall blocks it
+  [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx,dy])=>{
+    for(let s=1;s<=SIGHT;s++){
+      const nx=px_+dx*s, ny=py_+dy*s;
+      if(nx<0||ny<0||nx>=L.W||ny>=L.H) break;
+      add(nx,ny);
+      if(L.grid[ny][nx]==='#') break;
+    }
+  });
+  return vis;
+}
+
+function render(){
+  const L=state.lvl; const TS=tileSize(Math.max(L.W,L.H));
+  mazeCv.width=L.W*TS; mazeCv.height=L.H*TS;
+  const ctx=mazeCv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const vis=computeVisibility(L); state.visible=vis;
+
+  for(let y=0;y<L.H;y++){
+    for(let x=0;x<L.W;x++){
+      const p0x=x*TS,p0y=y*TS; const k=L.key(x,y);
+      if(!state.explored.has(k)){ ctx.fillStyle='#0a0812'; ctx.fillRect(p0x,p0y,TS,TS); continue; } // fog
+      if(L.grid[y][x]==='#'){
+        ctx.fillStyle='#4b3a63'; ctx.fillRect(p0x,p0y,TS,TS);
+        ctx.fillStyle='#6a5488'; ctx.fillRect(p0x,p0y,TS,3);
+        ctx.fillStyle='#33264a'; ctx.fillRect(p0x,p0y+TS-3,TS,3);
+      } else {
+        ctx.fillStyle='#0e0b16'; ctx.fillRect(p0x,p0y,TS,TS);
+      }
+      if(!vis.has(k)){ ctx.fillStyle='rgba(6,4,12,.62)'; ctx.fillRect(p0x,p0y,TS,TS); } // dim: explored but not in sight
+    }
+  }
+  // start marker (once explored)
+  const [sx,sy]=L.start;
+  if(state.explored.has(L.key(sx,sy))){ ctx.fillStyle='rgba(58,160,224,.22)'; ctx.fillRect(sx*TS,sy*TS,TS,TS); }
+  // exit cup (only after you have found it)
+  const [ex,ey]=L.end;
+  if(state.explored.has(L.key(ex,ey))){
+    const ox=ex*TS, oy=ey*TS;
+    ctx.fillStyle='#e0c040';
+    ctx.fillRect(ox+TS*0.28,oy+TS*0.22,TS*0.44,TS*0.30);
+    ctx.fillRect(ox+TS*0.42,oy+TS*0.50,TS*0.16,TS*0.18);
+    ctx.fillRect(ox+TS*0.30,oy+TS*0.66,TS*0.40,TS*0.12);
+    ctx.fillStyle='#fff3b0'; ctx.fillRect(ox+TS*0.36,oy+TS*0.28,TS*0.10,TS*0.10);
+  }
+  // monsters (only while in your current sight)
+  L.monsters.forEach((type,k)=>{
+    if(!vis.has(k)) return;
+    const x=k%L.W, y=(k/L.W)|0;
+    ctx.drawImage(MONSTERS[type].tile, x*TS+TS*0.08, y*TS+TS*0.08, TS*0.84, TS*0.84);
+  });
+  // player
+  const [px_,py_]=state.player;
+  ctx.drawImage(HERO_TILES[state.heroIdx], px_*TS+TS*0.06, py_*TS+TS*0.06, TS*0.88, TS*0.88);
+}
+const HERO_TILES=HEROES.map(h=>heroTile(h));
+
+function renderHUD(){
+  drawGrid($('hudFace'),HEROES[state.heroIdx].grid,HEROES[state.heroIdx].pal);
+  $('hudFace').style.width='32px'; $('hudFace').style.height='32px';
+  $('hudName').textContent=HEROES[state.heroIdx].name;
+  $('hudLevel').textContent='LEVEL '+(state.level+1)+' / '+LEVELS.length;
+  let s='';
+  for(let i=0;i<MAX_HP;i++) s+= i<state.hp ? '<span class="on">&hearts;</span>' : '<span class="off">&hearts;</span>';
+  $('hudHearts').innerHTML=s;
+}
+
+/* ---- overlays ---- */
+function showOverlay(title,cls,msg,btnLabel,btnAction){
+  overlay.classList.remove('hide');
+  $('ovTitle').textContent=title; $('ovTitle').className='big '+cls;
+  $('ovMsg').innerHTML=msg;
+  const b=$('ovBtn'); b.textContent=btnLabel; b.classList.remove('hide');
+  b.onclick=btnAction;
+}
+function hideOverlay(){ overlay.classList.add('hide'); }
+
+/* ---- flow ---- */
+function startGame(){
+  state.level=0; state.hp=MAX_HP;
+  screenSelect.classList.add('hide'); screenGame.classList.remove('hide');
+  loadLevel();
+}
+function loadLevel(){
+  state.lvl=buildLevel(state.level);
+  state.player=[...state.lvl.start];
+  state.explored=new Set();
+  state.over=false;
+  hideOverlay(); renderHUD(); render();
+}
+function hitFlash(){
+  mazeCv.classList.remove('hurt'); void mazeCv.offsetWidth; mazeCv.classList.add('hurt');
+  const f=$('flash'); f.classList.remove('show'); void f.offsetWidth; f.classList.add('show');
+}
+
+function tryMove(dx,dy){
+  if(state.over) return;
+  const L=state.lvl;
+  const nx=state.player[0]+dx, ny=state.player[1]+dy;
+  if(nx<0||ny<0||nx>=L.W||ny>=L.H) return;
+  if(L.grid[ny][nx]==='#') return;           // wall blocks
+  state.player=[nx,ny];
+  // monster on the entered tile?
+  const mk=L.key(nx,ny);
+  if(L.monsters.has(mk)){
+    const type=L.monsters.get(mk);
+    state.hp-=MONSTERS[type].cost;
+    hitFlash();
+    if(state.hp<=0){ state.hp=0; renderHUD(); render(); return gameOver(); }
+  }
+  // reached exit?
+  if(nx===L.end[0]&&ny===L.end[1]){ renderHUD(); render(); return levelComplete(); }
+  renderHUD(); render();
+}
+
+function levelComplete(){
+  state.over=true;
+  if(state.level+1<LEVELS.length){
+    const willRefill=((state.level+1)%3===0); // cleared 3rd/6th/9th level
+    let msg='You reached the Cup with '+state.hp+' heart'+(state.hp===1?'':'s')+' left.<br>Onward to level '+(state.level+2)+'!';
+    if(willRefill) msg+='<br><span class="ok">Your hearts are restored to full!</span>';
+    showOverlay('LEVEL CLEARED!','ok', msg,
+      'NEXT LEVEL',()=>{ state.level++; if(state.level%3===0) state.hp=MAX_HP; loadLevel(); });
+    $('menuBtn').classList.remove('hide');
+  } else {
+    showOverlay('YOU WON!','win',
+      'You conquered all '+LEVELS.length+' labyrinths as '+HEROES[state.heroIdx].name+'!<br>The wizarding world is safe.',
+      'PLAY AGAIN',()=>{ backToMenu(); });
+    $('menuBtn').classList.remove('hide');
+  }
+}
+function gameOver(){
+  state.over=true;
+  showOverlay('GAME OVER','lose',
+    'The darkness got you on level '+(state.level+1)+'.<br>Try again, brave wizard.',
+    'RETRY LEVEL',()=>{ state.hp=MAX_HP; loadLevel(); });
+  $('menuBtn').classList.remove('hide');
+}
+function backToMenu(){
+  hideOverlay(); screenGame.classList.add('hide'); screenSelect.classList.remove('hide');
+}
+
+/* ---- input ---- */
+window.addEventListener('keydown',e=>{
+  if(screenGame.classList.contains('hide')) return;
+  const k=e.key.toLowerCase();
+  let handled=true;
+  if(k==='arrowup'||k==='w') tryMove(0,-1);
+  else if(k==='arrowdown'||k==='s') tryMove(0,1);
+  else if(k==='arrowleft'||k==='a') tryMove(-1,0);
+  else if(k==='arrowright'||k==='d') tryMove(1,0);
+  else if(k==='enter'&&!overlay.classList.contains('hide')) $('ovBtn').click();
+  else handled=false;
+  if(handled) e.preventDefault();
+});
+
+$('startBtn').onclick=startGame;
+$('menuBtn').onclick=backToMenu;
+
+/* ---- D-pad touch controls ---- */
+const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+document.querySelectorAll('.dbtn').forEach(btn=>{
+  const [dx,dy]=DIRS[btn.dataset.dir];
+  const go=e=>{
+    e.preventDefault();
+    if(screenGame.classList.contains('hide')) return;
+    if(!overlay.classList.contains('hide')) return; // don't move while overlay is up
+    tryMove(dx,dy);
+  };
+  btn.addEventListener('pointerdown',go);
+});
+</script>
+</body>
+</html>
