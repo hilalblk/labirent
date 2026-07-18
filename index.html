@@ -101,7 +101,8 @@
   .win{color:var(--gold);} .lose{color:#e0405a;} .ok{color:#7bd88f;}
 
   .hint{text-align:center;font-size:9px;color:#8f7fb8;margin-top:14px;line-height:1.9;}
-  .foot{text-align:center;margin-top:34px;font-size:9px;color:#6f5f96;letter-spacing:1px;}
+  .foot{text-align:center;margin-top:34px;font-size:9px;color:#6f5f96;letter-spacing:1px;line-height:2;}
+  .credit{color:var(--gold);}
 
   /* ---- D-pad touch controls ---- */
   #dpad{
@@ -185,7 +186,7 @@
     <div class="hint">D-PAD or ARROW KEYS / WASD to move &middot; the maze is dark &mdash; explore to reveal it &middot; monsters lurk unseen</div>
   </div>
 
-  <div class="foot">labirent &middot; 8-bit wizarding maze</div>
+  <div class="foot">labirent &middot; 8-bit wizarding maze<br><span class="credit">Created by Derin</span></div>
 </div>
 
 <script>
@@ -575,7 +576,7 @@ function levelComplete(){
     $('menuBtn').classList.remove('hide');
   } else {
     showOverlay('YOU WON!','win',
-      'You conquered all '+LEVELS.length+' labyrinths as '+HEROES[state.heroIdx].name+'!<br>The wizarding world is safe.'+unlock,
+      'You conquered all '+LEVELS.length+' labyrinths as '+HEROES[state.heroIdx].name+'!<br>The wizarding world is safe.'+unlock+'<br><br><span class="credit">Created by Derin</span>',
       'PLAY AGAIN',()=>{ backToMenu(); });
     $('menuBtn').classList.remove('hide');
   }
