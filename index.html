@@ -320,11 +320,35 @@ function buildLevel(idx){
   const rng=mulberry32(cfg.seed);
   const g=genMaze(cfg.cols,cfg.rows,rng);
   const H=g.length,W=g[0].length;
-  const start=[1,1];
-  const end=[W-2,H-2];
-  g[start[1]][start[0]]='.'; g[end[1]][end[0]]='.';
-  const pathKeys=bfsPath(g,start,end);
   const key=(x,y)=>y*W+x;
+  const start=[1,1];
+  g[start[1]][start[0]]='.';
+
+  // BFS distances from start over open tiles => pick a far-away exit
+  const dist=new Map(); dist.set(key(start[0],start[1]),0);
+  const dq=[start]; const ddirs=[[0,-1],[0,1],[-1,0],[1,0]];
+  while(dq.length){
+    const [x,y]=dq.shift(); const d=dist.get(key(x,y));
+    for(const [dx,dy] of ddirs){
+      const nx=x+dx,ny=y+dy;
+      if(nx<0||ny<0||nx>=W||ny>=H) continue;
+      if(g[ny][nx]==='#') continue;
+      const k=key(nx,ny); if(dist.has(k)) continue;
+      dist.set(k,d+1); dq.push([nx,ny]);
+    }
+  }
+  // candidate cell centres, sorted farthest-first, then pick randomly among the far ones
+  const cells=[];
+  for(let y=1;y<H;y+=2) for(let x=1;x<W;x+=2){
+    if(x===start[0]&&y===start[1]) continue;
+    const k=key(x,y); if(dist.has(k)) cells.push([x,y,dist.get(k)]);
+  }
+  cells.sort((a,b)=>b[2]-a[2]);
+  const topN=Math.max(1,Math.ceil(cells.length*0.35)); // farthest ~35% of cells
+  const pick=cells[(rng()*topN)|0];
+  const end=[pick[0],pick[1]];
+  g[end[1]][end[0]]='.';
+  const pathKeys=bfsPath(g,start,end);
 
   // find off-path dead ends (cell centres with a single open neighbour)
   const deadEnds=[];
