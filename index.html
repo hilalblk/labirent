@@ -48,6 +48,9 @@
   .cname{font-size:10px;color:#fff;margin-bottom:8px;letter-spacing:1px;}
   .hearts{font-size:11px;letter-spacing:2px;}
   .heart{color:#e0405a;}
+  .card.locked{opacity:.5;cursor:not-allowed;filter:grayscale(1);}
+  .card.locked:hover{transform:none;}
+  .lockmsg{font-size:8px;color:#b0a0d0;letter-spacing:1px;line-height:1.6;}
 
   .enemies{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
   .enemy{background:var(--stone2);border:3px solid #000;box-shadow:0 0 0 3px #3a2f55;padding:12px 8px 14px;text-align:center;}
@@ -144,7 +147,7 @@
     <h2>CHOOSE YOUR WIZARD</h2>
     <div class="panel">
       <div class="cards" id="cards"></div>
-      <div class="note">click a wizard &middot; everyone starts with 5 hearts</div>
+      <div class="note">click a wizard &middot; everyone starts with 5 hearts &middot; clear lvl 5 &amp; 10 to unlock more</div>
     </div>
 
     <h2>BEWARE THE DARK CREATURES</h2>
@@ -215,11 +218,19 @@ const HARRY=[
 "...SSSSSSSSSS...","..RRRRRRRRRRRR..",".RRRRRRRRRRRRRR.",".RRRRRRAARRRRRR.",
 ".RRRRRRAARRRRRR.",".RRRRRRRRRRRRRR.",".RRRRR....RRRRR.",".KKKK......KKKK.",
 ];
+const DUMBLE=[
+"......HHHH......",".....HHHHHH.....","....HHHHHHHH....","...HHHHHHHHHH...",
+"..HHHHHHHHHHHH..","...SSSSSSSSSS...","...SEESSSSEES...","...SSSSSSSSSS...",
+"..BBBBBBBBBBBB..","..BBBBBBBBBBBB..","...BBBBBBBBBB...","....BBBBBBBB....",
+"...RRRRRRRRRR...","..RRRRRRRRRRRR..","..RRRRRRRRRRRR..","..RRRR....RRRR..",
+];
 const HEROES=[
- {name:"HARRY",   grid:HARRY,pal:{H:'#241608',S:'#f0c8a0',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018',C:'#c0392b'}},
- {name:"HERMIONE",grid:HERO, pal:{H:'#6b3a1a',S:'#f2cea6',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018'}},
- {name:"RON",     grid:HERO, pal:{H:'#c0521a',S:'#f5d2ac',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018'}},
- {name:"LUNA",    grid:HERO, pal:{H:'#e8d16a',S:'#f2ceac',E:'#141018',R:'#1f3a7a',A:'#c8ccd6',K:'#141018'}},
+ {name:"HARRY",     grid:HARRY, pal:{H:'#241608',S:'#f0c8a0',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018',C:'#c0392b'}, unlockLevel:0},
+ {name:"HERMIONE",  grid:HERO,  pal:{H:'#6b3a1a',S:'#f2cea6',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018'}, unlockLevel:0},
+ {name:"RON",       grid:HERO,  pal:{H:'#c0521a',S:'#f5d2ac',E:'#141018',R:'#7a1f1f',A:'#e0c040',K:'#141018'}, unlockLevel:0},
+ {name:"LUNA",      grid:HERO,  pal:{H:'#e8d16a',S:'#f2ceac',E:'#141018',R:'#1f3a7a',A:'#c8ccd6',K:'#141018'}, unlockLevel:0},
+ {name:"MALFOY",    grid:HERO,  pal:{H:'#ece4b0',S:'#f0dcc8',E:'#141018',R:'#1f5a2f',A:'#c8c8c8',K:'#141018'}, unlockLevel:5},
+ {name:"DUMBLEDORE",grid:DUMBLE,pal:{H:'#4a3a8a',S:'#f0d8c0',E:'#141018',B:'#e6e6f0',R:'#3a2b6e'}, unlockLevel:10},
 ];
 
 function px(o,x,y,w,h,c){o.fillStyle=c;o.fillRect(x,y,w,h);}
@@ -382,18 +393,32 @@ const $=id=>document.getElementById(id);
 const screenSelect=$('screen-select'), screenGame=$('screen-game');
 const mazeCv=$('maze'), overlay=$('overlay');
 
-/* ---- build select screen ---- */
+/* ---- character unlock progression (saved between sessions) ---- */
+function clearedLevels(){ try{ return parseInt(localStorage.getItem('labirent_cleared')||'0',10)||0; }catch(e){ return 0; } }
+function setCleared(n){ try{ if(n>clearedLevels()) localStorage.setItem('labirent_cleared',String(n)); }catch(e){} }
+function isUnlocked(h){ return clearedLevels()>=h.unlockLevel; }
+
+/* ---- build / rebuild select screen ---- */
 const cardsEl=$('cards');
-HEROES.forEach((h,i)=>{
-  const card=document.createElement('div');
-  card.className='card'+(i===0?' sel':'');
-  const cv=heroTile(h); cv.style.width='80px'; cv.style.height='80px'; card.appendChild(cv);
-  const nm=document.createElement('div'); nm.className='cname'; nm.textContent=h.name; card.appendChild(nm);
-  const ht=document.createElement('div'); ht.className='hearts';
-  ht.innerHTML='<span class="heart">&hearts;&hearts;&hearts;&hearts;&hearts;</span>'; card.appendChild(ht);
-  card.onclick=()=>{document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel'));card.classList.add('sel');state.heroIdx=i;};
-  cardsEl.appendChild(card);
-});
+function buildCards(){
+  cardsEl.innerHTML='';
+  HEROES.forEach((h,i)=>{
+    const unlocked=isUnlocked(h);
+    const card=document.createElement('div');
+    card.className='card'+(i===state.heroIdx&&unlocked?' sel':'')+(unlocked?'':' locked');
+    const cv=heroTile(h); cv.style.width='80px'; cv.style.height='80px'; card.appendChild(cv);
+    const nm=document.createElement('div'); nm.className='cname'; nm.textContent=h.name; card.appendChild(nm);
+    if(unlocked){
+      const ht=document.createElement('div'); ht.className='hearts';
+      ht.innerHTML='<span class="heart">&hearts;&hearts;&hearts;&hearts;&hearts;</span>'; card.appendChild(ht);
+      card.onclick=()=>{ document.querySelectorAll('.card').forEach(c=>c.classList.remove('sel')); card.classList.add('sel'); state.heroIdx=i; };
+    } else {
+      const lk=document.createElement('div'); lk.className='lockmsg'; lk.innerHTML='&#128274; clear lvl '+h.unlockLevel; card.appendChild(lk);
+    }
+    cardsEl.appendChild(card);
+  });
+}
+buildCards();
 const enemyDefs=[
  {name:"FLUFFY<br>the three-headed dog",type:'fluffy',cost:"-1 heart"},
  {name:"THE SERPENT<br>(basilisk)",type:'snake',cost:"-2 hearts"},
@@ -531,18 +556,26 @@ function tryMove(dx,dy){
   renderHUD(); render();
 }
 
+function unlockMsg(clearedLevel){
+  const h=HEROES.find(x=>x.unlockLevel===clearedLevel);
+  return h ? '<br><span class="win">&#11088; New wizard unlocked: '+h.name+'!</span>' : '';
+}
 function levelComplete(){
   state.over=true;
+  const cleared=state.level+1;
+  setCleared(cleared);
+  const unlock=unlockMsg(cleared);
   if(state.level+1<LEVELS.length){
-    const willRefill=((state.level+1)%3===0); // cleared 3rd/6th/9th level
+    const willRefill=(cleared%3===0); // cleared 3rd/6th/9th level
     let msg='You reached the Cup with '+state.hp+' heart'+(state.hp===1?'':'s')+' left.<br>Onward to level '+(state.level+2)+'!';
     if(willRefill) msg+='<br><span class="ok">Your hearts are restored to full!</span>';
+    msg+=unlock;
     showOverlay('LEVEL CLEARED!','ok', msg,
       'NEXT LEVEL',()=>{ state.level++; if(state.level%3===0) state.hp=MAX_HP; loadLevel(); });
     $('menuBtn').classList.remove('hide');
   } else {
     showOverlay('YOU WON!','win',
-      'You conquered all '+LEVELS.length+' labyrinths as '+HEROES[state.heroIdx].name+'!<br>The wizarding world is safe.',
+      'You conquered all '+LEVELS.length+' labyrinths as '+HEROES[state.heroIdx].name+'!<br>The wizarding world is safe.'+unlock,
       'PLAY AGAIN',()=>{ backToMenu(); });
     $('menuBtn').classList.remove('hide');
   }
@@ -556,6 +589,7 @@ function gameOver(){
 }
 function backToMenu(){
   hideOverlay(); screenGame.classList.add('hide'); screenSelect.classList.remove('hide');
+  buildCards();
 }
 
 /* ---- input ---- */
